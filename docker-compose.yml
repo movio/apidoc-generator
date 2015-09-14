@@ -1,0 +1,11 @@
+apidoc-generator:
+  image: apidoc-generator
+  ports:
+    - "9002:9002"
+  extra_hosts:
+    - "dockerhost:172.17.42.1"
+  container_name: apidoc-generator
+  volumes:
+    - "/home/jamesk/.ivy2:/root/.ivy2"
+  tty: true
+  command: sbt "generator/run 9002"
