@@ -7,9 +7,9 @@ case class Play2Json(
   ssd: ScalaService
 ) {
 
-  private case class ReadWrite(name: String)
-  private[this] val Reads = ReadWrite("Reads")
-  private[this] val Writes = ReadWrite("Writes")
+  private sealed trait ReadWrite
+  private case object Reads extends ReadWrite { override def toString = "Reads" }
+  private case object Writes extends ReadWrite { override def toString = "Writes" }
 
   def generate(): String = {
     Seq(
@@ -30,10 +30,8 @@ case class Play2Json(
       union.types.map { scalaUnionType =>
         s"""(__ \\ "${scalaUnionType.originalName}").read(${reader(union, scalaUnionType)}).asInstanceOf[play.api.libs.json.Reads[${union.name}]]"""
       }.mkString("\norElse\n").indent(4),
-      // TODO: Figure out appropriate way to deserialize the undefined
-      // type. This example creates a runtime error
-      // s"    orElse",
-      // s"    ${union.undefinedType.shortName}(__.toString).asInstanceOf[play.api.libs.json.Reads[${union.name}]]",
+      s"    orElse",
+      s"    play.api.libs.json.Reads(jsValue => play.api.libs.json.JsSuccess(${union.undefinedType.name}(jsValue.toString))).asInstanceOf[play.api.libs.json.Reads[${union.name}]]",
       s"  )",
       s"}"
     ).mkString("\n")
@@ -169,12 +167,12 @@ case class Play2Json(
     readWrite: ReadWrite
   ): String = {
     val method = methodName(name, readWrite)
-    s"implicit def $method: play.api.libs.json.${readWrite.name}[$name]"
+    s"implicit def $method: play.api.libs.json.$readWrite[$name]"
   }
 
   private def methodName(
     name: String,
     readWrite: ReadWrite
-  ): String = s"json${readWrite.name}${ssd.name}$name"
+  ): String = s"json$readWrite${ssd.name}$name"
 
 }

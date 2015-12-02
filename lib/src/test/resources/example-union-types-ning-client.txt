@@ -196,6 +196,8 @@ package com.bryzek.apidoc.example.union.types.v0.models {
         (__ \ "foo").read(jsonReadsApidocExampleUnionTypesFoo).asInstanceOf[play.api.libs.json.Reads[Foobar]]
         orElse
         (__ \ "bar").read(jsonReadsApidocExampleUnionTypesBar).asInstanceOf[play.api.libs.json.Reads[Foobar]]
+        orElse
+        play.api.libs.json.Reads(jsValue => play.api.libs.json.JsSuccess(com.bryzek.apidoc.example.union.types.v0.models.FoobarUndefinedType(jsValue.toString))).asInstanceOf[play.api.libs.json.Reads[Foobar]]
       )
     }
 
@@ -214,6 +216,8 @@ package com.bryzek.apidoc.example.union.types.v0.models {
         (__ \ "guest_user").read(jsonReadsApidocExampleUnionTypesGuestUser).asInstanceOf[play.api.libs.json.Reads[User]]
         orElse
         (__ \ "uuid").read(jsonReadsApidocExampleUnionTypesUserUuid).asInstanceOf[play.api.libs.json.Reads[User]]
+        orElse
+        play.api.libs.json.Reads(jsValue => play.api.libs.json.JsSuccess(com.bryzek.apidoc.example.union.types.v0.models.UserUndefinedType(jsValue.toString))).asInstanceOf[play.api.libs.json.Reads[User]]
       )
     }
 
@@ -298,10 +302,11 @@ package com.bryzek.apidoc.example.union.types.v0 {
       defaultHeaders.foreach { h => builder.addHeader(h._1, h._2) }
 
       auth.fold(builder) {
-        case Authorization.Basic(username, password) => {
+        case Authorization.Basic(username, passwordOpt) => {
           builder.setRealm(
             new Realm.RealmBuilder()
               .setPrincipal(username)
+              .setPassword(passwordOpt.getOrElse(""))
               .setUsePreemptiveAuth(true)
               .setScheme(Realm.AuthScheme.BASIC)
               .build()

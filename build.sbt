@@ -6,14 +6,6 @@ organization := "com.bryzek.apidoc.generator"
 
 scalaVersion in ThisBuild := "2.11.7"
 
-// TODO: lib will eventually be published as a jar if it turns out
-// that we need it. For now it is here mostly for reference - hoping
-// we end up not needing it.
-lazy val lib = project
-  .in(file("lib"))
-  .dependsOn(generated)
-  .settings(commonSettings: _*)
-
 lazy val generated = project
   .in(file("generated"))
   .enablePlugins(PlayScala)
@@ -22,6 +14,14 @@ lazy val generated = project
       ws
     )
   )
+
+// TODO: lib will eventually be published as a jar if it turns out
+// that we need it. For now it is here mostly for reference - hoping
+// we end up not needing it.
+lazy val lib = project
+  .in(file("lib"))
+  .dependsOn(generated)
+  .settings(commonSettings: _*)
 
 lazy val generator = project
   .in(file("generator"))
@@ -57,8 +57,8 @@ lazy val commonSettings: Seq[Setting[_]] = Seq(
   organization := "com.bryzek.apidoc",
   libraryDependencies ++= Seq(
     "org.atteo" % "evo-inflector" % "1.2.1",
-    "org.scalatest" %% "scalatest" % "2.2.0" % "test",
-    "org.mockito" % "mockito-all" % "1.9.5" % "test"
+    "org.scalatest" %% "scalatest" % "2.2.5" % "test",
+    "org.mockito" % "mockito-all" % "1.10.19" % "test"
   ),
   scalacOptions += "-feature"
 )

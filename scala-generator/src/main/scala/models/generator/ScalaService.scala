@@ -22,7 +22,7 @@ case class ScalaService(
 
   val models = service.models.sortWith { _.name < _.name }.map { new ScalaModel(this, _) }
 
-  val enums = service.enums.sortWith { _.name < _.name }.map { new ScalaEnum(_) }
+  val enums = service.enums.sortWith { _.name < _.name }.map { new ScalaEnum(this, _) }
 
   val unions = service.unions.sortWith { _.name < _.name }.map { new ScalaUnion(this, _) }
 
@@ -44,6 +44,20 @@ case class ScalaService(
     }
   }
 
+  def errorParsingType(datatype: String, description: String): String = {
+    Seq(
+      s"Could not parse type[$datatype] for $description.",
+      Seq(
+        "Available Enums:",
+        datatypeResolver.enumNames.map { s => s"  - $s" }.mkString("\n"),
+        "Available Unions:",
+        datatypeResolver.unionNames.map { s => s"  - $s" }.mkString("\n"),
+        "Available Models:",
+        datatypeResolver.modelNames.map { s => s"  - $s" }.mkString("\n")
+      ).mkString("\n")
+    ).mkString("\n")
+  }
+
 }
 
 class ScalaUnion(val ssd: ScalaService, val union: Union) {
@@ -57,7 +71,7 @@ class ScalaUnion(val ssd: ScalaService, val union: Union) {
   // Include an undefined instance to nudge the developer to think
   // about what happens in the future when a new type is added to the
   // union type.
-  val undefinedType = ScalaPrimitive.Model(ssd.namespaces.models, name + "UndefinedType")
+  val undefinedType = ScalaPrimitive.Model(ssd.namespaces, name + "UndefinedType")
 
   val types: Seq[ScalaUnionType] = union.types.map { ScalaUnionType(ssd, _) }
 
@@ -82,11 +96,11 @@ object ScalaUnionType {
 
   def apply(ssd: ScalaService, t: UnionType): ScalaUnionType = {
     val `type` = ssd.datatypeResolver.parse(t.`type`, true).getOrElse {
-      sys.error(s"Could not parse type[${t.`type`}] for union type[$t]")
+      sys.error(ssd.errorParsingType(t.`type`, s"union type[$t]"))
     }
     val dt:ScalaDatatype = ssd.scalaDatatype(`type`)
     dt match {
-      case ScalaPrimitive.Enum(ns, name) => {
+      case ScalaPrimitive.Enum(_, name) => {
         val enum = ssd.enums.find(_.name == name).getOrElse {
           sys.error(s"UnionType[$t] Failed to find enum[$name]")
         }
@@ -94,7 +108,7 @@ object ScalaUnionType {
         ScalaUnionType(t.`type`, dt, enum = Some(enum))
       }
 
-      case ScalaPrimitive.Model(ns, name) => {
+      case ScalaPrimitive.Model(_, name) => {
         val model = ssd.models.find(_.name == name).getOrElse {
           sys.error(s"UnionType[$t] Failed to find model[$name]")
         }
@@ -132,7 +146,7 @@ class ScalaBody(ssd: ScalaService, val body: Body) {
 
   val datatype = {
     val t = ssd.datatypeResolver.parse(body.`type`, true).getOrElse {
-      sys.error(s"Could not parse type[${body.`type`}] for body[$body]")
+      sys.error(ssd.errorParsingType(body.`type`, s"body[$body]"))
     }
     ssd.scalaDatatype(t)
   }
@@ -141,9 +155,11 @@ class ScalaBody(ssd: ScalaService, val body: Body) {
 
 }
 
-class ScalaEnum(val enum: Enum) {
+class ScalaEnum(val ssd: ScalaService, val enum: Enum) {
 
   val name: String = ScalaUtil.toClassName(enum.name)
+
+  val qualifiedName = ssd.enumClassName(name)
 
   val description: Option[String] = enum.description
 
@@ -221,7 +237,7 @@ class ScalaResponse(ssd: ScalaService, method: Method, response: Response) {
   val code: ResponseCode = response.code
 
   val `type`: Datatype = ssd.datatypeResolver.parse(response.`type`, true).getOrElse {
-    sys.error(s"Could not parse type[${response.`type`}] for response[$response]")
+    sys.error(ssd.errorParsingType(response.`type`, s"response[$response]"))
   }
 
   val isOption = `type` match {
@@ -266,7 +282,7 @@ class ScalaField(ssd: ScalaService, modelName: String, field: Field) {
   def originalName: String = field.name
 
   val `type`: Datatype = ssd.datatypeResolver.parse(field.`type`, required).getOrElse {
-    sys.error(s"Could not parse type[${field.`type`}] for model[$modelName] field[$name]")
+    sys.error(ssd.errorParsingType(field.`type`, s"model[$modelName] field[$name]"))
   }
 
   def datatype = ssd.scalaDatatype(`type`)
@@ -287,7 +303,7 @@ class ScalaParameter(ssd: ScalaService, val param: Parameter) {
   def name: String = ScalaUtil.toVariable(param.name)
 
   val `type`: Datatype = ssd.datatypeResolver.parse(param.`type`, required).getOrElse {
-    sys.error(s"Could not parse type[${param.`type`}] for param[$param]")
+    sys.error(ssd.errorParsingType(param.`type`, s"param[$param]"))
   }
 
   def originalName: String = param.name
